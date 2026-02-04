@@ -4,4 +4,4 @@
 # TODO: Replace hardcoded 'haswell' with 'x86-64-v3' to safely target all modern CPUs
 # (Haswell+, Excavator+) with AVX2/FMA support, rather than a specific Intel generation.
 
-rustflags = ["-C", "target-feature=+avx2,+fma", "-C", "target-cpu=haswell"]
+rustflags = ["-C", "target-feature=+avx2,+fma", "-C", "target-cpu=native"]
