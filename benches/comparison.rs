@@ -2,14 +2,12 @@ use std::hint::black_box;
 use criterion::{criterion_group, criterion_main, Criterion};
 use rand::Rng; 
 use rand::distr::Alphanumeric; 
-use xxhash_rust::xxh64::xxh64;
+use xxhash_rust::xxh64::Xxh64;
 use sbbf_rs::{FilterFn, ALIGNMENT, BUCKET_SIZE};
 use std::alloc::{alloc_zeroed, dealloc, Layout};
 use bloomsday::BlockedBloomFilter;
-
-// =========================================================================
-// 1. SBBF-RS WRAPPER (With Proper Alignment)
-// =========================================================================
+use fastbloom::BloomFilter;
+use std::hash::{Hash, Hasher};
 
 pub struct SbbfWrapper {
     filter_fn: FilterFn,
@@ -25,7 +23,6 @@ impl SbbfWrapper {
         let num_buckets = (entries * bits_per_key + 255) / 256;
         let buf_size = num_buckets * BUCKET_SIZE;
         
-        // Ensure ALIGNMENT (64 bytes)
         let layout = Layout::from_size_align(buf_size, ALIGNMENT).unwrap();
         let buf = unsafe { alloc_zeroed(layout) };
         
@@ -42,17 +39,29 @@ impl SbbfWrapper {
     }
 
     #[inline(always)]
-    pub fn insert(&mut self, h: u64) {
+    pub fn insert_hash(&mut self, h: u64) {
         unsafe {
             self.filter_fn.insert(self.buf, self.num_buckets, h);
         }
     }
 
     #[inline(always)]
-    pub fn contains(&self, h: u64) -> bool {
+    pub fn contains_hash(&self, h: u64) -> bool {
         unsafe {
             self.filter_fn.contains(self.buf, self.num_buckets, h)
         }
+    }
+
+    pub fn insert_key<T: Hash>(&mut self, key: &T) {
+        let mut hasher = Xxh64::new(0);
+        key.hash(&mut hasher);
+        self.insert_hash(hasher.finish());
+    }
+
+    pub fn contains_key<T: Hash>(&self, key: &T) -> bool {
+        let mut hasher = Xxh64::new(0);
+        key.hash(&mut hasher);
+        self.contains_hash(hasher.finish())
     }
 }
 
@@ -64,79 +73,80 @@ impl Drop for SbbfWrapper {
     }
 }
 
-// =========================================================================
-// 2. BENCHMARK EXECUTION
-// =========================================================================
-
 fn bench_bloom_filters(c: &mut Criterion) {
-    let mut group = c.benchmark_group("Bloom Filter Comparison");
+    let mut group = c.benchmark_group("Bloom Filter Comparison (Key-based)");
     
     let entry_count = 1_000_000;
     let fpr = 0.01;
     
-    // --- 1. Setup Data ---
-    // Generate Random Keys
     let keys: Vec<String> = (0..entry_count)
         .map(|_| rand::rng().sample_iter(&Alphanumeric).take(16).map(char::from).collect())
         .collect();
     
-    // Create Hashes
-    let hashes_blk: Vec<u64> = keys.iter().map(|k| xxh64(k.as_bytes(), 0)).collect();
-
-    // Build Filters
     let mut sbbf_filter = SbbfWrapper::new(entry_count, fpr);
-    for &h in &hashes_blk {
-        sbbf_filter.insert(h);
+    for k in &keys {
+        sbbf_filter.insert_key(k);
     }
 
     let mut blk_filter = BlockedBloomFilter::new(entry_count, fpr);
-    for &h in &hashes_blk {
-        blk_filter.insert_hash(h);
+    for k in &keys {
+        blk_filter.insert_key(k);
     }
 
-    // --- 2. Prepare Test Sets ---
-    
-    // Set A: Negative (Keys that do NOT exist)
+    let mut fb_filter = BloomFilter::with_false_pos(fpr).expected_items(entry_count);
+    for k in &keys {
+        fb_filter.insert(k);
+    }
+
     let neg_keys: Vec<String> = (0..1000) 
         .map(|_| rand::rng().sample_iter(&Alphanumeric).take(16).map(char::from).collect())
         .collect();
-    let neg_hashes_blk: Vec<u64> = neg_keys.iter().map(|k| xxh64(k.as_bytes(), 0)).collect();
+    let pos_keys = &keys[0..1000];
 
-    // Set B: Positive (Keys that DO exist)
-    let pos_hashes_blk = &hashes_blk[0..1000];
-
-    // --- 3. Run Benchmarks ---
-
-    // A. Negative Lookups (Item not present)
     group.bench_function("SBBF-RS (Negative)", |b| {
         b.iter(|| {
-            for &h in &neg_hashes_blk {
-                black_box(sbbf_filter.contains(h));
+            for k in &neg_keys {
+                black_box(sbbf_filter.contains_key(k));
             }
         })
     });
 
     group.bench_function("Blocked BF (Negative)", |b| {
         b.iter(|| {
-            for &h in &neg_hashes_blk {
-                black_box(blk_filter.may_match_hash(h));
+            for k in &neg_keys {
+                black_box(blk_filter.may_match_key(k));
             }
         })
     });
 
-    // B. Positive Lookups (Item IS present)
+    group.bench_function("FastBloom (Negative)", |b| {
+        b.iter(|| {
+            for k in &neg_keys {
+                black_box(fb_filter.contains(k));
+            }
+        })
+    });
+
     group.bench_function("SBBF-RS (Positive)", |b| {
         b.iter(|| {
-            for &h in pos_hashes_blk {
-                black_box(sbbf_filter.contains(h));
+            for k in pos_keys {
+                black_box(sbbf_filter.contains_key(k));
             }
         })
     });
 
     group.bench_function("Blocked BF (Positive)", |b| {
         b.iter(|| {
-            for &h in pos_hashes_blk {
-                black_box(blk_filter.may_match_hash(h));
+            for k in pos_keys {
+                black_box(blk_filter.may_match_key(k));
+            }
+        })
+    });
+
+    group.bench_function("FastBloom (Positive)", |b| {
+        b.iter(|| {
+            for k in pos_keys {
+                black_box(fb_filter.contains(k));
             }
         })
     });

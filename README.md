@@ -1,4 +1,4 @@
-# bloomsday
+# Bloomsday
 
 A high-performance cache-line blocked Bloom filter optimized for modern CPUs.
 
@@ -87,7 +87,3 @@ Run benchmarks yourself with:
 ```bash
 cargo bench
 ```
-
-## License
-
-MIT

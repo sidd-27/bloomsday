@@ -20,6 +20,7 @@ serde_json = "1.0"
 criterion = "0.7.0"
 rand = "0.9.2"
 sbbf-rs = "0.2.8"
+fastbloom = "0.14.1"
 
 [[bench]]
 name = "comparison"
