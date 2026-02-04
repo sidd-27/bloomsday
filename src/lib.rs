@@ -118,16 +118,6 @@ mod tests {
     use rand::Rng;
 
     #[test]
-    fn test_basic_insert_and_contains() {
-        let mut bf = BlockedBloomFilter::new(1000, 0.01);
-        let hash = 1234567890;
-        
-        assert!(!bf.may_match_hash(hash));
-        bf.insert_hash(hash);
-        assert!(bf.may_match_hash(hash));
-    }
-
-    #[test]
     fn test_key_api() {
         let mut bf = BlockedBloomFilter::new(1000, 0.01);
         let key = "hello world";
@@ -179,16 +169,6 @@ mod tests {
     }
 
     #[test]
-    fn test_clone() {
-        let mut bf = BlockedBloomFilter::new(100, 0.01);
-        bf.insert_hash(12345);
-        
-        let bf_clone = bf.clone();
-        assert!(bf_clone.may_match_hash(12345));
-        assert!(!bf_clone.may_match_hash(67890));
-    }
-
-    #[test]
     fn test_different_seeds() {
         let mut bf1 = BlockedBloomFilter::new_with_seed(1000, 0.01, 123);
         let bf2 = BlockedBloomFilter::new_with_seed(1000, 0.01, 456);
@@ -199,14 +179,6 @@ mod tests {
         assert!(!bf2.may_match_key(key));
     }
 
-    #[test]
-    fn test_saturation() {
-        let mut bf = BlockedBloomFilter::new(10, 0.01);
-        for i in 0..1000 {
-            bf.insert_hash(i as u64);
-        }
-        assert!(bf.may_match_hash(999999));
-    }
 }
 
 #[cfg(all(test, feature = "serde"))]

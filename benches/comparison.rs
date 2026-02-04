@@ -7,7 +7,17 @@ use sbbf_rs::{FilterFn, ALIGNMENT, BUCKET_SIZE};
 use std::alloc::{alloc_zeroed, dealloc, Layout};
 use bloomsday::BlockedBloomFilter;
 use fastbloom::BloomFilter;
-use std::hash::{Hash, Hasher};
+use std::hash::{Hash, Hasher, BuildHasher};
+
+#[derive(Clone, Copy)]
+struct Xxh64Builder(u64);
+
+impl BuildHasher for Xxh64Builder {
+    type Hasher = Xxh64;
+    fn build_hasher(&self) -> Self::Hasher {
+        Xxh64::new(self.0)
+    }
+}
 
 pub struct SbbfWrapper {
     filter_fn: FilterFn,
@@ -76,7 +86,7 @@ impl Drop for SbbfWrapper {
 fn bench_bloom_filters(c: &mut Criterion) {
     let mut group = c.benchmark_group("Bloom Filter Comparison (Key-based)");
     
-    let entry_count = 1_000_000;
+    let entry_count = 10_000;
     let fpr = 0.01;
     
     let keys: Vec<String> = (0..entry_count)
@@ -93,7 +103,9 @@ fn bench_bloom_filters(c: &mut Criterion) {
         blk_filter.insert_key(k);
     }
 
-    let mut fb_filter = BloomFilter::with_false_pos(fpr).expected_items(entry_count);
+    let mut fb_filter = BloomFilter::with_false_pos(fpr)
+        .hasher(Xxh64Builder(0))
+        .expected_items(entry_count);
     for k in &keys {
         fb_filter.insert(k);
     }
@@ -154,5 +166,62 @@ fn bench_bloom_filters(c: &mut Criterion) {
     group.finish();
 }
 
-criterion_group!(benches, bench_bloom_filters);
+fn bench_hash_performance(c: &mut Criterion) {
+    let mut group = c.benchmark_group("Bloom Filter Comparison (Hash-based)");
+    
+    let entry_count = 10_000;
+    let fpr = 0.01;
+    
+    let mut rng = rand::rng();
+    let hashes: Vec<u64> = (0..entry_count).map(|_| rng.random()).collect();
+    
+    let mut sbbf_filter = SbbfWrapper::new(entry_count, fpr);
+    for &h in &hashes {
+        sbbf_filter.insert_hash(h);
+    }
+
+    let mut blk_filter = BlockedBloomFilter::new(entry_count, fpr);
+    for &h in &hashes {
+        blk_filter.insert_hash(h);
+    }
+
+    let neg_hashes: Vec<u64> = (0..1000).map(|_| rng.random()).collect();
+    let pos_hashes = &hashes[0..1000];
+
+    group.bench_function("SBBF-RS (Negative)", |b| {
+        b.iter(|| {
+            for &h in &neg_hashes {
+                black_box(sbbf_filter.contains_hash(h));
+            }
+        })
+    });
+
+    group.bench_function("Blocked BF (Negative)", |b| {
+        b.iter(|| {
+            for &h in &neg_hashes {
+                black_box(blk_filter.may_match_hash(h));
+            }
+        })
+    });
+
+    group.bench_function("SBBF-RS (Positive)", |b| {
+        b.iter(|| {
+            for &h in pos_hashes {
+                black_box(sbbf_filter.contains_hash(h));
+            }
+        })
+    });
+
+    group.bench_function("Blocked BF (Positive)", |b| {
+        b.iter(|| {
+            for &h in pos_hashes {
+                black_box(blk_filter.may_match_hash(h));
+            }
+        })
+    });
+    
+    group.finish();
+}
+
+criterion_group!(benches, bench_bloom_filters, bench_hash_performance);
 criterion_main!(benches);
