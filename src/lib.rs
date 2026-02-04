@@ -20,8 +20,8 @@ struct CacheLineBlock {
 
 impl BlockedBloomFilter {
     const SALT: [u32; 8] = [
-        0x47b6137b, 0x44974d91, 0x8824ad5b, 0xa2b7289d,
-        0x705495c7, 0x2df1424b, 0x9efc4947, 0x5c6bfb31,
+        0x47b6137b, 0x44974d91, 0x8824ad5b, 0xa2b7289d, 0x705495c7, 0x2df1424b, 0x9efc4947,
+        0x5c6bfb31,
     ];
 
     /// Creates a new filter with the given entries and false positive rate.
@@ -36,13 +36,17 @@ impl BlockedBloomFilter {
         if num_blocks == 0 {
             num_blocks = 1;
         }
-        
+
         let mut blocks = Vec::with_capacity(num_blocks as usize);
         unsafe {
             blocks.set_len(num_blocks as usize);
             std::ptr::write_bytes(blocks.as_mut_ptr(), 0, num_blocks as usize);
         }
-        Self { blocks, num_blocks, seed }
+        Self {
+            blocks,
+            num_blocks,
+            seed,
+        }
     }
 
     #[inline(always)]
@@ -58,13 +62,14 @@ impl BlockedBloomFilter {
         unsafe {
             let block_ptr = self.blocks.get_unchecked_mut(block_idx).words.as_mut_ptr();
             let words = &mut *(block_ptr as *mut [u32; 8]);
-            
-            words.iter_mut()
-                 .zip(Self::SALT.iter())
-                 .for_each(|(w, &salt)| {
-                     let idx = (h as u32).wrapping_mul(salt) >> 27;
-                     *w |= 1 << idx;
-                 });
+
+            words
+                .iter_mut()
+                .zip(Self::SALT.iter())
+                .for_each(|(w, &salt)| {
+                    let idx = (h as u32).wrapping_mul(salt) >> 27;
+                    *w |= 1 << idx;
+                });
         }
     }
 
@@ -76,14 +81,15 @@ impl BlockedBloomFilter {
         unsafe {
             let block_ptr = self.blocks.get_unchecked(block_idx).words.as_ptr();
             let words = &*(block_ptr as *const [u32; 8]);
-            
-            let check = words.iter()
-                             .zip(Self::SALT.iter())
-                             .fold(0u32, |acc, (&w, &salt)| {
-                                 let idx = (h as u32).wrapping_mul(salt) >> 27;
-                                 acc | ((1 << idx) & !w)
-                             });
-            
+
+            let check = words
+                .iter()
+                .zip(Self::SALT.iter())
+                .fold(0u32, |acc, (&w, &salt)| {
+                    let idx = (h as u32).wrapping_mul(salt) >> 27;
+                    acc | ((1 << idx) & !w)
+                });
+
             check == 0
         }
     }
@@ -121,7 +127,7 @@ mod tests {
     fn test_key_api() {
         let mut bf = BlockedBloomFilter::new(1000, 0.01);
         let key = "hello world";
-        
+
         assert!(!bf.may_match_key(key));
         bf.insert_key(key);
         assert!(bf.may_match_key(key));
@@ -133,7 +139,7 @@ mod tests {
         let entries = 10_000;
         let fpr = 0.01;
         let mut bf = BlockedBloomFilter::new(entries, fpr);
-        
+
         let mut rng = rand::rng();
         let mut inserted = Vec::new();
 
@@ -178,7 +184,6 @@ mod tests {
         assert!(bf1.may_match_key(key));
         assert!(!bf2.may_match_key(key));
     }
-
 }
 
 #[cfg(all(test, feature = "serde"))]
@@ -189,10 +194,10 @@ mod serde_tests {
     fn test_serialization() {
         let mut bf = BlockedBloomFilter::new(100, 0.01);
         bf.insert_hash(42);
-        
+
         let serialized = serde_json::to_string(&bf).unwrap();
         let deserialized: BlockedBloomFilter = serde_json::from_str(&serialized).unwrap();
-        
+
         assert!(deserialized.may_match_hash(42));
         assert!(!deserialized.may_match_hash(43));
     }
