@@ -25,10 +25,11 @@ bloomsday = "0.1.0"
 ### Optional Features
 
 - **serde**: Enables `Serialize` and `Deserialize` support for `BlockedBloomFilter`.
-  ```toml
-  [dependencies]
-  bloomsday = { version = "0.1.0", features = ["serde"] }
-  ```
+
+```toml
+[dependencies]
+bloomsday = { version = "0.1.0", features = ["serde"] }
+```
 
 ### Example
 
