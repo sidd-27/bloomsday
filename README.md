@@ -78,9 +78,9 @@ Benchmarks run on `1,000,000` items with `0.01` false positive rate:
 
 | Operation | Implementation | Time (avg) |
 |-----------|----------------|------------|
-| Negative Lookup | **BlockedBloomFilter** | **~1.17 µs** |
+| Negative Lookup | **bloomsday** | **~1.17 µs** |
 | Negative Lookup | sbbf-rs | ~2.81 µs |
-| Positive Lookup | **BlockedBloomFilter** | **~1.26 µs** |
+| Positive Lookup | **bloomsday** | **~1.26 µs** |
 | Positive Lookup | sbbf-rs | ~2.93 µs |
 
 Run benchmarks yourself with:
