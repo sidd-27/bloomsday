@@ -1,0 +1,4 @@
+# .cargo/config.toml
+[build]
+# Force AVX2 specifically. "native" can sometimes fail in VMs or strange shells.
+rustflags = ["-C", "target-feature=+avx2,+fma", "-C", "target-cpu=haswell"]

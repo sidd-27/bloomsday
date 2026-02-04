@@ -1,0 +1,29 @@
+[package]
+name = "fast_blocked_bloom"
+version = "0.1.0"
+edition = "2024"
+authors = ["Sidd <siddharth.rambhia@example.com>"] # Placeholder, can be updated by user
+description = "A high-performance cache-line blocked Bloom filter optimized for modern CPUs."
+license = "MIT"
+
+[dependencies]
+# No runtime dependencies for the library itself, it only uses std.
+serde = { version = "1.0", features = ["derive"], optional = true }
+xxhash-rust = { version = "0.8", features = ["xxh32", "xxh64", "xxh3"] }
+
+[features]
+default = []
+serde = ["dep:serde"]
+
+[dev-dependencies]
+serde_json = "1.0"
+criterion = "0.7.0"
+rand = "0.9.2"
+# rand_distr seems unused if rand 0.9 provides Alphanumeric via rand::distr, 
+# but keeping it just in case or if the user wants it, though I'll comment it out if not needed.
+# Based on code `use rand::distr::Alphanumeric;` this is likely in rand 0.9.
+sbbf-rs = "0.2.8"
+
+[[bench]]
+name = "comparison"
+harness = false
