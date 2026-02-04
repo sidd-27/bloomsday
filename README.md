@@ -1,6 +1,8 @@
-# Fast Blocked Bloom Filter
+# bloomsday
 
-A high-performance, cache-line blocked Bloom filter implementation in Rust, optimized for modern CPUs (AVX2/AVX-512).
+A high-performance cache-line blocked Bloom filter optimized for modern CPUs.
+
+This is a Rust implementation of the [Parquet Split Block Bloom Filter (SBBF)](https://github.com/apache/parquet-format/blob/master/BloomFilter.md) format, designed for high-throughput membership queries with excellent cache locality.
 
 ## Features
 
@@ -17,7 +19,7 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-fast_blocked_bloom = "0.1.0"
+bloomsday = "0.1.0"
 ```
 
 ### Optional Features
@@ -25,7 +27,7 @@ fast_blocked_bloom = "0.1.0"
 - **serde**: Enables `Serialize` and `Deserialize` support for `BlockedBloomFilter`.
   ```toml
   [dependencies]
-  fast_blocked_bloom = { version = "0.1.0", features = ["serde"] }
+  bloomsday = { version = "0.1.0", features = ["serde"] }
   ```
 
 ### Example
@@ -34,7 +36,7 @@ fast_blocked_bloom = "0.1.0"
 This uses the internal `xxHash` implementation, which is very fast and robust.
 
 ```rust
-use fast_blocked_bloom::BlockedBloomFilter;
+use bloomsday::BlockedBloomFilter;
 
 fn main() {
     let entries = 1_000_000;
@@ -55,7 +57,7 @@ fn main() {
 If you have your own hash (e.g., from a database or another hasher), you can skip the hashing step.
 
 ```rust
-use fast_blocked_bloom::BlockedBloomFilter;
+use bloomsday::BlockedBloomFilter;
 
 fn main() {
     let mut filter = BlockedBloomFilter::new(1_000, 0.01);

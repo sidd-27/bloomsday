@@ -1,8 +1,8 @@
 [package]
-name = "fast_blocked_bloom"
+name = "bloomsday"
 version = "0.1.0"
 edition = "2024"
-authors = ["Sidd <siddharth.rambhia@example.com>"] # Placeholder, can be updated by user
+authors = ["Sidd <siddharth.rambhia@example.com>"]
 description = "A high-performance cache-line blocked Bloom filter optimized for modern CPUs."
 license = "MIT"
 
@@ -19,9 +19,6 @@ serde = ["dep:serde"]
 serde_json = "1.0"
 criterion = "0.7.0"
 rand = "0.9.2"
-# rand_distr seems unused if rand 0.9 provides Alphanumeric via rand::distr, 
-# but keeping it just in case or if the user wants it, though I'll comment it out if not needed.
-# Based on code `use rand::distr::Alphanumeric;` this is likely in rand 0.9.
 sbbf-rs = "0.2.8"
 
 [[bench]]

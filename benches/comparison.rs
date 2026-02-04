@@ -5,7 +5,7 @@ use rand::distr::Alphanumeric;
 use xxhash_rust::xxh64::xxh64;
 use sbbf_rs::{FilterFn, ALIGNMENT, BUCKET_SIZE};
 use std::alloc::{alloc_zeroed, dealloc, Layout};
-use fast_blocked_bloom::BlockedBloomFilter;
+use bloomsday::BlockedBloomFilter;
 
 // =========================================================================
 // 1. SBBF-RS WRAPPER (With Proper Alignment)

@@ -117,7 +117,7 @@ impl BlockedBloomFilter {
         self.may_match_hash(hasher.finish())
     }
 
-    fn bloom_bits_per_key(fpr: f64) -> usize {
+    fn bloom_bits_per_key(fpr: f64) -> usize { // TODO: find more accurate formula for blocked BF size
         // If FPR is invalid (e.g. <= 0 or >= 1), we clamp or default.
         // For simplicity, we assume reasonable input, but preventing crash on 0.0 is good.
         if fpr <= 0.0 || fpr >= 1.0 {
