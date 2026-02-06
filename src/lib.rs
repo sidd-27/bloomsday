@@ -12,10 +12,10 @@ pub struct BlockedBloomFilter {
 }
 
 #[repr(C, align(32))]
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Default)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 struct CacheLineBlock {
-    words: [u64; 4],
+    words: [u32; 8],
 }
 
 impl BlockedBloomFilter {
@@ -37,11 +37,7 @@ impl BlockedBloomFilter {
             num_blocks = 1;
         }
 
-        let mut blocks = Vec::with_capacity(num_blocks as usize);
-        unsafe {
-            blocks.set_len(num_blocks as usize);
-            std::ptr::write_bytes(blocks.as_mut_ptr(), 0, num_blocks as usize);
-        }
+        let blocks = vec![CacheLineBlock::default(); num_blocks as usize];
         Self {
             blocks,
             num_blocks,
@@ -58,40 +54,34 @@ impl BlockedBloomFilter {
     #[inline(always)]
     pub fn insert_hash(&mut self, h: u64) {
         let block_idx = self.fast_map((h >> 32) as u32);
+        let block = &mut self.blocks[block_idx];
 
-        unsafe {
-            let block_ptr = self.blocks.get_unchecked_mut(block_idx).words.as_mut_ptr();
-            let words = &mut *(block_ptr as *mut [u32; 8]);
-
-            words
-                .iter_mut()
-                .zip(Self::SALT.iter())
-                .for_each(|(w, &salt)| {
-                    let idx = (h as u32).wrapping_mul(salt) >> 27;
-                    *w |= 1 << idx;
-                });
-        }
+        block
+            .words
+            .iter_mut()
+            .zip(Self::SALT.iter())
+            .for_each(|(w, &salt)| {
+                let idx = (h as u32).wrapping_mul(salt) >> 27;
+                *w |= 1 << idx;
+            });
     }
 
     /// Checks if the filter might contain the hash.
     #[inline(always)]
     pub fn may_match_hash(&self, h: u64) -> bool {
         let block_idx = self.fast_map((h >> 32) as u32);
+        let block = &self.blocks[block_idx];
 
-        unsafe {
-            let block_ptr = self.blocks.get_unchecked(block_idx).words.as_ptr();
-            let words = &*(block_ptr as *const [u32; 8]);
+        let check = block
+            .words
+            .iter()
+            .zip(Self::SALT.iter())
+            .fold(0u32, |acc, (&w, &salt)| {
+                let idx = (h as u32).wrapping_mul(salt) >> 27;
+                acc | ((1 << idx) & !w)
+            });
 
-            let check = words
-                .iter()
-                .zip(Self::SALT.iter())
-                .fold(0u32, |acc, (&w, &salt)| {
-                    let idx = (h as u32).wrapping_mul(salt) >> 27;
-                    acc | ((1 << idx) & !w)
-                });
-
-            check == 0
-        }
+        check == 0
     }
 
     /// Hashes the key and inserts it.
@@ -126,12 +116,12 @@ mod tests {
     #[test]
     fn test_key_api() {
         let mut bf = BlockedBloomFilter::new(1000, 0.01);
-        let key = "hello world";
+        let key = "Leopold Bloom";
 
         assert!(!bf.may_match_key(key));
         bf.insert_key(key);
         assert!(bf.may_match_key(key));
-        assert!(!bf.may_match_key("goodbye"));
+        assert!(!bf.may_match_key("Molly Bloom"));
     }
 
     #[test]

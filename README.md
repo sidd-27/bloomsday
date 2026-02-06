@@ -10,6 +10,7 @@ This is a Rust implementation of the [Parquet Split Block Bloom Filter (SBBF)](h
 - **High Performance**: ~2.3x faster than `sbbf-rs` (Split Block Bloom Filter) in benchmarks.
 
 > **Note**: This library is fast **only** when the compiler is allowed to auto-vectorize the code properly. You should compile with appropriate target features (e.g., `-C target-cpu=native` or `-C target-feature=+avx2`). Without these, the compiler may fallback to scalar instructions, significantly reducing performance.
+- **100% Safe Rust**: The core library contains zero `unsafe` blocks, ensuring memory safety and reliability without sacrificing performance.
 - **Built-in Hashing**: Includes an easy-to-use API for arbitrary keys using `xxHash` (xxh64).
 - **Zero Dependencies**: Core library is lightweight (only `std` and `xxhash-rust`).
 
@@ -45,11 +46,11 @@ fn main() {
     let mut filter = BlockedBloomFilter::new(entries, fpr);
 
     // Insert strings, integers, or any type implementing Hash
-    filter.insert_key("my_key");
-    filter.insert_key(&12345);
+    filter.insert_key("Leopold Bloom");
+    filter.insert_key(&1904);
 
-    if filter.may_match_key("my_key") {
-        println!("Key may be present");
+    if filter.may_match_key("Leopold Bloom") {
+        println!("Yes I said yes I will Yes.");
     }
 }
 ```
